@@ -1,0 +1,1089 @@
+Below is the build pack. It is structured so you can hand pieces directly to Claude Code or Codex.
+
+Two implementation constraints worth keeping: in Next.js App Router, interactive state like forms, local storage, and trackers should live in Client Components, while validation is worth centralising with schemas such as Zod so profile and log data stay typed and safe. ([Next.js][1])
+
+---
+
+# 1) Product definition
+
+## Product
+
+**PuppyPath**
+A personalised puppy guide, tracker, and behaviour support app for new dog owners.
+
+## Core promise
+
+A new owner enters their puppy profile and gets:
+
+* a tailored daily guide
+* a weekly plan
+* age-stage priorities
+* issue-specific troubleshooting
+* a tracker that improves recommendations
+
+## MVP positioning
+
+Not:
+
+* a generic pet journal
+* a social network
+* a medical diagnostic app
+
+Yes:
+
+* a practical puppy operating system
+* tailored by breed, age, home setup, household, and current issues
+
+---
+
+# 2) MVP scope
+
+## Must-have
+
+* onboarding profile
+* tailored daily plan
+* tailored weekly plan
+* behaviour helper
+* daily tracker
+* weekly insights
+* rule-based recommendation engine
+* seeded sample data
+
+## Nice-to-have later
+
+* reminders
+* auth + cloud sync
+* trainer export
+* growth charts
+* AI chat assistant
+* content CMS
+* subscriptions/paywall
+
+---
+
+# 3) Core user stories
+
+```text
+- as a first-time puppy owner
+  - I want to enter my puppy’s details
+  - so I get a plan that feels specific to my dog, not generic
+
+- as a stressed owner dealing with barking/biting/poor settling
+  - I want quick behaviour guidance
+  - so I know what to do right now
+
+- as an owner trying to improve routines
+  - I want to log naps, training, walks, enrichment, and issues
+  - so I can see what is driving better or worse days
+
+- as an owner of an apartment puppy / multi-dog household / non-crate-trained puppy
+  - I want advice that fits my setup
+  - so I am not forced into irrelevant crate-only or backyard-only guidance
+```
+
+---
+
+# 4) Information architecture
+
+```text
+- app
+  - onboarding
+  - dashboard
+  - plan
+  - behaviour
+  - tracker
+  - insights
+  - profile
+
+- core engines
+  - profile engine
+  - recommendation engine
+  - behaviour decision engine
+  - insights engine
+
+- content system
+  - age-stage modules
+  - issue guides
+  - environment guides
+  - breed-group modifiers
+  - household modifiers
+```
+
+---
+
+# 5) Data model
+
+## Main entities
+
+```text
+- PuppyProfile
+  - id
+  - name
+  - breed
+  - breedGroup
+  - sex
+  - ageWeeks
+  - weightKg
+  - energyProfile
+  - homeType
+  - hasYard
+  - crateTrained
+  - householdDogsCount
+  - householdCatsCount
+  - puppyCount
+  - ownerExperienceLevel
+  - issues[]
+  - feedingType
+  - sleepSetup
+  - goals[]
+  - createdAt
+  - updatedAt
+
+- DailyLog
+  - id
+  - profileId
+  - date
+  - napsCount
+  - napQuality
+  - mealsCount
+  - toiletEvents
+  - accidents
+  - sniffMinutes
+  - walkMinutes
+  - playMinutes
+  - trainingMinutes
+  - calmMinutes
+  - barkingCount
+  - bitingLevel
+  - pacingEpisodes
+  - chewingIncidents
+  - ownerStress
+  - notes
+
+- Recommendation
+  - id
+  - type
+  - title
+  - body
+  - priority
+  - reasonCodes[]
+  - moduleIds[]
+
+- WeeklyInsight
+  - dateRange
+  - avgSniffMinutes
+  - avgTrainingMinutes
+  - avgCalmMinutes
+  - avgBarkingCount
+  - avgBitingLevel
+  - badDayPatterns[]
+  - recommendations[]
+```
+
+---
+
+# 6) Rules engine design
+
+## Inputs that affect guidance
+
+* age
+* breed or breed group
+* sex
+* weight / size band
+* home type
+* yard or no yard
+* crate trained or not
+* number of dogs
+* number of puppies
+* owner experience
+* issue list
+* daily logs / trends
+
+## Output categories
+
+* daily activity targets
+* training priorities
+* enrichment suggestions
+* environment setup
+* behaviour likely causes
+* immediate actions
+* prevention steps
+* escalation flags
+
+## Recommended rule layers
+
+Use this order:
+
+```text
+1. universal age-stage rules
+2. breed-group modifiers
+3. environment modifiers
+4. household modifiers
+5. crate / non-crate modifiers
+6. issue-specific rules
+7. recent-log-based tuning
+```
+
+## Example rule shape
+
+```ts
+type Rule = {
+  id: string;
+  when: {
+    ageWeeks?: { min?: number; max?: number };
+    breedGroup?: string[];
+    homeType?: string[];
+    crateTrained?: boolean;
+    issuesAny?: string[];
+    puppyCount?: { min?: number };
+    householdDogsCount?: { min?: number };
+  };
+  effects: {
+    addPriorities?: string[];
+    addWarnings?: string[];
+    addModules?: string[];
+    adjustTargets?: Partial<DailyTargets>;
+    addEnvironmentChecklist?: string[];
+  };
+  priority: number;
+};
+```
+
+## Example rules
+
+```text
+- if ageWeeks 8–16
+  - prioritise toilet routine, settling, handling, name response, socialisation
+
+- if breedGroup = retriever
+  - add retrieve games, scent games, chew work
+  - caution against over-arousal fetch marathons
+
+- if homeType = apartment
+  - add hallway/window trigger management
+  - add indoor enrichment emphasis
+
+- if crateTrained = false
+  - replace crate recommendations with bed / tether / boundary methods
+
+- if puppyCount > 1
+  - add independent training guidance
+  - add littermate syndrome warning module
+
+- if issues includes barking + homeType apartment
+  - prioritise trigger reduction, sniffing, calm wind-down, settle training
+
+- if issues includes biting + ageWeeks 10–20
+  - explain developmental biting
+  - prioritise naps, redirection, calm breaks, chew rotation
+```
+
+---
+
+# 7) Content taxonomy
+
+## Age stages
+
+```text
+- 8–10 weeks
+- 10–12 weeks
+- 12–16 weeks
+- 4–6 months
+- 6–9 months
+- 9–12 months
+```
+
+## Issue modules
+
+```text
+- barking
+- biting / mouthing
+- toilet training
+- settling
+- separation distress
+- chewing
+- pulling
+- pacing
+- poor sleep
+- over-arousal
+- multi-dog tension
+```
+
+## Environment modules
+
+```text
+- apartment puppy
+- house with yard
+- no crate setup
+- multi-dog household
+- puppy with cats
+- work-from-home owner
+- office / mixed schedule
+```
+
+## Breed-group modules
+
+```text
+- retriever
+- herding
+- toy / companion
+- terrier
+- gundog
+- working
+- mixed / unknown
+```
+
+## Training priority modules
+
+```text
+- name response
+- recall foundation
+- settle on mat
+- handling / grooming
+- toilet cue
+- leash intro
+- calm around stimuli
+- alone-time foundations
+- impulse control
+```
+
+---
+
+# 8) Recommendation formulas
+
+## Daily targets
+
+Keep this rule-based, not fake-precise.
+
+```text
+Base age-stage target:
+- sleep range
+- enrichment range
+- training range
+- physical range
+- calm-work range
+
+Then modify by:
+- breed group
+- energy profile
+- home type
+- issues
+- previous 7-day pattern
+```
+
+## Example
+
+```text
+12–16 week retriever, apartment, barking + biting:
+- mental target: medium-high
+- physical target: moderate
+- calm target: high
+- priorities:
+  - sniffing
+  - settle
+  - handling
+  - bite redirection
+- avoid:
+  - late intense play
+  - over-long walks
+```
+
+---
+
+# 9) Behaviour helper framework
+
+Every issue page should use the same pattern:
+
+```text
+- what may be happening
+- what to do right now
+- what to change this week
+- what not to do
+- when to get professional help
+```
+
+## Example issue card structure
+
+```ts
+type IssueGuide = {
+  id: string;
+  title: string;
+  likelyCauses: string[];
+  immediateActions: string[];
+  preventionPlan: string[];
+  avoid: string[];
+  escalateWhen: string[];
+  relatedModules: string[];
+};
+```
+
+---
+
+# 10) Insights engine
+
+## Goal
+
+Turn logs into practical suggestions, not vanity charts.
+
+## Logic
+
+* detect “bad days”
+* compare against average
+* highlight repeated drivers
+
+## Example bad day rules
+
+```text
+bad_day if any:
+- barkingCount >= 4
+- bitingLevel >= 4
+- accidents >= 2
+- pacingEpisodes >= 2
+- ownerStress >= 4
+```
+
+## Example insights
+
+```text
+- barking is higher on days with low sniff minutes
+- biting is higher on low-nap days
+- settling improves when calm minutes > 20
+- accidents increase when toilet intervals are longer
+```
+
+---
+
+# 11) UX requirements
+
+## Product principles
+
+* calm
+* practical
+* low clutter
+* tap-friendly
+* confidence-building
+* low shame / non-judgmental
+
+## UI rules
+
+* one main action per screen
+* no dense dashboards early
+* use cards, toggles, segmented controls
+* use progressive disclosure
+* show “top 3 priorities today”, not 20 tasks
+* default to plain-English labels
+
+---
+
+# 12) Technical architecture
+
+## Recommended stack
+
+* Next.js App Router
+* TypeScript
+* Tailwind
+* localStorage persistence for MVP
+* Zod for schemas/validation
+* small rules engine in `lib/rules`
+* seeded JSON/TS content modules
+
+Next.js App Router is a sensible fit here because you can keep mostly static/content-heavy screens as Server Components and isolate interactive trackers, onboarding flows, and local-storage-backed widgets inside Client Components. Zod is a strong fit for runtime validation plus static typing for profile and log payloads. ([Next.js][1])
+
+## Suggested folders
+
+```text
+- app/
+  - onboarding/
+  - dashboard/
+  - plan/
+  - behaviour/
+  - tracker/
+  - insights/
+  - profile/
+  - layout.tsx
+  - page.tsx
+
+- components/
+  - onboarding/
+  - dashboard/
+  - plan/
+  - behaviour/
+  - tracker/
+  - insights/
+  - shared/
+
+- lib/
+  - schemas/
+  - rules/
+  - engines/
+  - storage/
+  - utils/
+
+- data/
+  - breedGroups.ts
+  - ageStages.ts
+  - issueGuides.ts
+  - rules.ts
+  - sampleProfiles.ts
+  - sampleLogs.ts
+
+- types/
+  - profile.ts
+  - log.ts
+  - recommendations.ts
+  - rules.ts
+```
+
+---
+
+# 13) Build order
+
+## Phase 1
+
+* schemas
+* types
+* sample data
+* rules engine
+* recommendation engine
+
+## Phase 2
+
+* onboarding
+* dashboard
+* tailored plan
+* tracker
+
+## Phase 3
+
+* behaviour helper
+* weekly insights
+* polishing / seeded demo
+
+## Phase 4
+
+* QA
+* content pass
+* README
+* deployment prep
+
+---
+
+# 14) Acceptance criteria
+
+```text
+- user can create a puppy profile locally
+- app generates a tailored daily plan
+- app generates a weekly plan
+- app changes guidance when:
+  - breed group changes
+  - home type changes
+  - crate status changes
+  - issue list changes
+- user can log daily inputs
+- app can produce weekly insights from logs
+- behaviour helper returns useful guidance per issue
+- non-crate-trained users are not shown crate-only advice
+- multi-puppy households receive independent training guidance
+- seeded demo profile works immediately
+```
+
+---
+
+# 15) Master prompt for Claude Code
+
+Use this first.
+
+```markdown
+You are a senior product-minded full-stack engineer.
+
+Build an MVP web app called **PuppyPath**.
+
+## Product goal
+Create a personalised puppy guide + tracker for new dog owners.
+
+This is not a generic dog journal. It must combine:
+1. Puppy profile onboarding
+2. Tailored daily and weekly plans
+3. Behaviour troubleshooting
+4. Activity and behaviour tracking
+5. Weekly insights based on logged data
+
+## Target user
+A first-time puppy owner who feels overwhelmed and wants a clear, practical guide specific to their dog and setup.
+
+## Tech stack
+Use:
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- localStorage for MVP persistence
+- Zod for schemas and validation
+- modular architecture
+- responsive mobile-first design
+
+## Product principles
+- calm
+- practical
+- trustworthy
+- minimal clutter
+- large tap targets
+- no fake AI fluff
+- rule-based recommendations only
+
+## Core screens
+
+### 1. Onboarding
+Collect:
+- puppy name
+- breed or mix
+- breed group if known
+- sex
+- age in weeks
+- weight in kg
+- home type (apartment / house)
+- has yard yes/no
+- crate trained yes/no
+- other dogs count
+- cats count
+- one puppy or multiple puppies
+- owner experience: first-time / some / experienced
+- energy profile: low / medium / high
+- key issues:
+  - barking
+  - biting
+  - toilet training
+  - poor settling
+  - separation distress
+  - chewing
+  - pulling
+  - pacing
+  - poor sleep
+  - over-arousal
+
+### 2. Dashboard
+Show:
+- today’s top 3 priorities
+- age stage
+- key risk flags
+- quick actions
+- quick log buttons
+- recommended activities with durations
+
+### 3. Tailored plan
+Generate:
+- daily activity targets
+- training priorities
+- calming activities
+- feeding / enrichment suggestions
+- weekly rotation plan
+- environment checklist
+
+### 4. Behaviour helper
+For each issue show:
+- likely causes
+- immediate actions
+- prevention plan
+- what to avoid
+- when to get professional help
+
+### 5. Tracker
+Allow daily logs for:
+- naps count
+- nap quality
+- meals count
+- toilet events
+- accidents
+- sniff minutes
+- walk minutes
+- play minutes
+- training minutes
+- calm minutes
+- barking count
+- biting level (1–5)
+- pacing episodes
+- chewing incidents
+- owner stress (1–5)
+- notes
+
+### 6. Weekly insights
+Show:
+- averages
+- repeated bad-day patterns
+- suggested adjustments
+- simple practical recommendations
+
+## Rules engine
+Build a rule-based recommendation engine with these layers:
+1. age-stage rules
+2. breed-group modifiers
+3. environment modifiers
+4. household modifiers
+5. crate / non-crate modifiers
+6. issue-specific rules
+7. recent-log-based tuning
+
+## Example rules
+- 8–16 weeks:
+  - prioritise toilet routine, settling, handling, name response, socialisation
+- retriever:
+  - add retrieve games, sniffing, chew work
+  - avoid over-arousal fetch marathons
+- apartment:
+  - indoor enrichment emphasis
+  - hallway/window trigger management
+- not crate trained:
+  - show bed / tether / boundary methods
+  - do not rely on crate-only guidance
+- multiple puppies:
+  - add independent training recommendations
+  - surface littermate risk module
+- barking + apartment:
+  - prioritise trigger reduction, sniffing, calm wind-down, settle work
+- biting + young puppy:
+  - prioritise naps, chew redirection, calm breaks
+
+## Content modules
+Create reusable data-driven modules for:
+- first week home
+- toilet training
+- biting
+- settling
+- socialisation
+- chewing
+- calmness
+- sleep
+- enrichment
+- multi-dog setup
+- apartment puppy
+- no-crate setup
+
+## Data model
+Implement:
+- PuppyProfile
+- DailyLog
+- Recommendation
+- WeeklyInsight
+
+## Deliverables
+- full project code
+- seeded example profiles
+- seeded example logs
+- README
+- modular file structure:
+  - app/
+  - components/
+  - lib/
+  - data/
+  - types/
+
+## Important
+Make the app genuinely useful on first run.
+Use rule-based recommendation logic, not placeholder lorem ipsum.
+Prefer high-quality defaults and clear copy.
+Return complete runnable code.
+```
+
+---
+
+# 16) Follow-up prompt for Claude Code: rules engine first
+
+Use this before UI if you want a better foundation.
+
+```markdown
+Before building UI, design the domain model and rules engine for PuppyPath.
+
+Output:
+1. TypeScript types
+2. Zod schemas
+3. rules.ts structure
+4. age stage definitions
+5. breed group modifiers
+6. issue guide schema
+7. a recommendation engine function:
+   - generateRecommendations(profile, logs)
+   - generateDailyPlan(profile, logs)
+   - generateWeeklyPlan(profile, logs)
+   - generateInsights(profile, logs)
+
+Requirements:
+- no backend
+- local-first data model
+- deterministic output
+- easy to extend
+- no giant switch statement if avoidable
+- modular, data-driven rules
+
+Then generate:
+- sample profile objects
+- sample logs
+- unit-test-friendly pure functions
+```
+
+---
+
+# 17) Follow-up prompt for Claude Code: build UI on top of engine
+
+```markdown
+The rules engine and schemas already exist.
+
+Now build the UI for PuppyPath on top of that engine.
+
+Requirements:
+- App Router
+- mobile-first
+- clean calm interface
+- tabs or top nav for:
+  - Dashboard
+  - Plan
+  - Behaviour
+  - Tracker
+  - Insights
+  - Profile
+
+Use:
+- cards
+- segmented controls
+- checkboxes
+- sliders only where useful
+- minimal animations
+
+Important:
+- onboarding should feel easy
+- tracker should support fast daily input
+- dashboard should surface top priorities, not too much data
+- insights should be practical, not decorative
+
+Use localStorage with hydration-safe client components.
+Seed demo data if no profile exists.
+```
+
+---
+
+# 18) Prompt for Codex
+
+Use Codex for repo shaping, cleanup, tests, and implementation tasks.
+
+```markdown
+You are a senior software engineer working in a Next.js TypeScript codebase.
+
+Project: PuppyPath
+Goal: personalised puppy guide + tracker for new dog owners
+
+Your tasks:
+1. scaffold and organise the repo cleanly
+2. create TypeScript domain types
+3. add Zod schemas for profile and daily logs
+4. implement a modular rules engine
+5. create sample seed data
+6. build pure utility functions for:
+   - age-stage mapping
+   - daily target generation
+   - recommendation generation
+   - weekly insight extraction
+7. write lightweight tests for engine functions
+8. refactor repeated logic into reusable modules
+9. ensure localStorage usage is client-only and hydration-safe
+10. improve naming, readability, and maintainability
+
+Constraints:
+- no backend
+- no auth
+- no external database
+- no fake AI-generated output
+- deterministic, rule-based recommendations
+- mobile-first UI
+- keep code modular and production-sane
+
+Deliver:
+- clean file tree
+- clear README
+- concise comments only where useful
+- no overengineering
+```
+
+---
+
+# 19) Repo README outline
+
+```text
+- What PuppyPath is
+- Who it is for
+- Key features
+- Tech stack
+- Local setup
+- File structure
+- Rules engine overview
+- Data model overview
+- Example recommendation flow
+- Future roadmap
+```
+
+---
+
+# 20) Content seed pack
+
+Tell Claude/Codex to seed these immediately.
+
+## Sample profiles
+
+```text
+- 14-week male Golden Retriever, apartment, no crate, single puppy, barking + biting
+- 11-week female Cavoodle, apartment, poor settling + toilet training
+- 16-week male Border Collie, house, over-arousal + chewing
+- 12-week littermate pair, house, multi-puppy guidance
+```
+
+## Sample issue guides
+
+```text
+- barking
+- biting
+- settling
+- chewing
+- accidents
+- pacing
+```
+
+## Sample age-stage guides
+
+```text
+- 8–10 weeks
+- 10–12 weeks
+- 12–16 weeks
+- 4–6 months
+```
+
+---
+
+# 21) Suggested implementation notes
+
+## Keep recommendation output structured
+
+Do not generate giant free-text blobs.
+
+Use output like:
+
+```ts
+type RecommendationBundle = {
+  priorities: string[];
+  activities: { title: string; duration: string; reason: string }[];
+  warnings: string[];
+  environmentChecklist: string[];
+  issueActions: { issue: string; actions: string[] }[];
+};
+```
+
+## Keep issue guides reusable
+
+A barking guide should be reusable across breeds, then modified by context.
+
+## Keep content in data files
+
+Do not hardcode guidance strings deep inside components.
+
+---
+
+# 22) What to tell Claude/Codex not to do
+
+```text
+- do not build a generic pet tracker
+- do not make recommendations random or pseudo-AI
+- do not rely on crate assumptions
+- do not hide logic inside components
+- do not over-index on charts
+- do not create a massive backend-first system
+- do not use placeholder content as final content
+```
+
+---
+
+# 23) Best execution sequence for you
+
+## Prompt order
+
+1. **Claude Code** → rules engine + schemas + architecture
+2. **Claude Code** → full app scaffold and UI
+3. **Codex** → cleanup, refactor, tests, README, bug fixes
+4. **Claude Code** → final UX/content pass
+5. **Codex** → final repo polish
+
+---
+
+# 24) One-shot super prompt
+
+If you want one big prompt instead of sequencing:
+
+```markdown
+Build PuppyPath, a personalised puppy guide + tracker for new dog owners.
+
+Requirements:
+- Next.js App Router
+- TypeScript
+- Tailwind
+- Zod
+- localStorage only
+- mobile-first
+- rule-based recommendations only
+
+Core features:
+- onboarding profile
+- tailored dashboard
+- daily plan
+- weekly plan
+- behaviour helper
+- daily tracker
+- weekly insights
+
+Profile inputs:
+- breed / breed group
+- sex
+- age
+- weight
+- home type
+- yard yes/no
+- crate trained yes/no
+- dogs count
+- cats count
+- one puppy or multiple
+- owner experience
+- energy profile
+- issues
+
+Rules engine layers:
+1. age stage
+2. breed group
+3. environment
+4. household
+5. crate status
+6. issues
+7. recent logs
+
+Modules:
+- first week home
+- toilet training
+- biting
+- settling
+- socialisation
+- chewing
+- calmness
+- sleep
+- enrichment
+- apartment puppy
+- no-crate setup
+- multi-dog setup
+
+Deliver:
+- full code
+- seeded data
+- README
+- modular architecture
+- pure utility functions
+- practical guidance copy
+- clean calm UI
+```
+
+---
+
+The next best asset to create is the **actual rules/content source files**: `ageStages.ts`, `issueGuides.ts`, `breedGroups.ts`, and `rules.ts`. That is the real moat.
+
+[1]: https://nextjs.org/docs/app/getting-started/server-and-client-components?utm_source=chatgpt.com "Getting Started: Server and Client Components"
